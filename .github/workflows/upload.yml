@@ -26,7 +26,7 @@ jobs:
           clientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           refreshToken: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           filename: 'video.mp4'
-          folderId: ${{ secrets.FOLDER_ID }}
+          folderId: '1jzjYEzpUk4_v_obH9RW0AZObm9bD1URq'
           name: 'video_uploaded.mp4'
           overwrite: 'true'
           mimeType: 'video/mp4'
