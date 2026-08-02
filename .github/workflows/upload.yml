@@ -1,0 +1,32 @@
+name: Upload MP4 to Google Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'URL file MP4 cần tải'
+        required: true
+
+jobs:
+  download-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Download video
+        run: |
+          curl -L "${{ github.event.inputs.video_url }}" -o video.mp4
+
+      - name: Upload to Google Drive
+        uses: logickoder/google-drive-upload@1.0.1
+        with:
+          clientId: 786002703186-iv9q9606m58bkovbobs8pa8fe30th2h8.apps.googleusercontent.com
+          clientSecret: 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
+          refreshToken: 1//04xrz90YvnpztCgYIARAAGAQSNwF-L9IrAjJ1XJt2SEpTJQy_nsC9HdK-h6lENCogSafpT09kGBmuEbVXTvxfehZ2vDcVUV_uU8c
+          authType: oauth
+          filename: video.mp4
+          folderId: 1jzjYEzpUk4_v_obH9RW0AZObm9bD1URq
+          name: video_uploaded.mp4
+          overwrite: true
+          mimeType: video/mp4
