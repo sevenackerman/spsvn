@@ -1,32 +1,29 @@
-name: Upload MP4 to Google Drive 2
-
-on:
-  workflow_dispatch:
-    inputs:
-      video_url:
-        description: 'URL file MP4 cần tải'
-        required: true
+# .github/workflows/main.yml
+name: Main
+on: [ push ]
 
 jobs:
-  upload-job:
+  my_job:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Download video
+      - name: Archive files
         run: |
-          curl -L "${{ github.event.inputs.video_url }}" -o video.mp4
+          sudo apt-get update
+          sudo apt-get install zip
+          zip -r archive.zip *
 
-      - name: g-drive-upload
-        uses: logickoder/google-drive-upload@1.0.1
+      - name: Upload to Google Drive with OAuth
+        uses: logickoder/g-drive-upload@main
         with:
           authType: 'oauth'
           clientId: ${{ secrets.GOOGLE_CLIENT_ID }}
           clientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           refreshToken: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          filename: 'video.mp4'
+          filename: 'archive.zip'
           folderId: ${{ secrets.FOLDER_ID }}
-          name: 'video_uploaded.mp4'
-          overwrite: 'true'
-          mimeType: 'video/mp4'
+          name: 'documentation.zip' # optional string
+          overwrite: 'true' # optional boolean
