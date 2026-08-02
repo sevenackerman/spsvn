@@ -51,7 +51,7 @@ jobs:
 
       - name: Send link to Lark Base
         run: |
-          curl -X POST "https://open.larksuite.com/open-apis/automation/v1/webhook/${{ secrets.LARK_WEBHOOK_ID }}" \
+          curl -X POST "https://trans-cosmos.larksuite.com/base/workflow/webhook/event/R5afajhrMw02mGhgtFzuTp3Zs0t" \
           -H "Content-Type: application/json" \
           -d "{
             \"drive_link\": \"${DRIVE_LINK}\",
