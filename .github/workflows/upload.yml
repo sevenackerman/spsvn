@@ -35,25 +35,11 @@ jobs:
           overwrite: 'true'
           mimeType: 'video/mp4'
 
-      - name: Make file public
+      - name: Send file name to Lark Base
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GOOGLE_ACCESS_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://www.googleapis.com/drive/v3/files/${{ steps.upload.outputs.fileId }}/permissions" \
-            -d '{
-              "role": "reader",
-              "type": "anyone"
-            }'
-
-      - name: Construct Drive link
-        run: echo "DRIVE_LINK=https://drive.google.com/file/d/${{ steps.upload.outputs.fileId }}/view?usp=sharing" >> $GITHUB_ENV
-
-      - name: Send link to Lark Base
-        run: |
-          curl -X POST "https://trans-cosmos.larksuite.com/base/workflow/webhook/event/R5afajhrMw02mGhgtFzuTp3Zs0t" \
+          curl -X POST "https://open.larksuite.com/open-apis/automation/v1/webhook/${{ secrets.LARK_WEBHOOK_ID }}" \
           -H "Content-Type: application/json" \
           -d "{
-            \"drive_link\": \"${DRIVE_LINK}\",
+            \"file_name\": \"video_uploaded_${{ env.RAND }}.mp4\",
             \"source_url\": \"${{ github.event.inputs.video_url }}\"
           }"
