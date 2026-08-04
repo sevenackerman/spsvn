@@ -1,4 +1,4 @@
-name: Upload MP4 to Lark Base
+name: Upload MP4 to Lark Base 2
 
 on:
   workflow_dispatch:
