@@ -1,10 +1,34 @@
+name: Upload MP4 to Lark Base
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'URL file MP4 cần tải'
+        required: true
+
+jobs:
+  upload-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download video
+        run: |
+          curl -L "${{ github.event.inputs.video_url }}" -o video.mp4
+          RAND=$(date +%s)
+          mv video.mp4 video_${RAND}.mp4
+          echo "RAND=$RAND" >> $GITHUB_ENV
+
       - name: Prepare upload on Lark Base
         id: lark_prepare
         run: |
+          set -euo pipefail
           FILE="video_${RAND}.mp4"
           SIZE=$(stat -c%s "$FILE")
           ORIGIN="https://trans-cosmos.larksuite.com"
-          COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw; swp_csrf_token=1ed4ba78-ae18-4aec-8afc-404d0eb7e8ff; t_beda37=5982f46c3833b2f8df68d4f75e2bd8d3db8bec1ac5e1ae1ce53b147562e8d58b; x_lsc_cac_token=eyJhbGciOiJFUzI1NiIsImZlYXR1cmVfY29kZSI6ImxzbV9jb25kX2FjY2VzcyIsImtpZCI6Ijc2Njg4NDYzNjk1MDY4NTY3NjgiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE3ODU4NTIzMjIsImVudiI6eyJ0ZW5hbnRfaWQiOjY4MDU4MTYyOTM0NjAwMTcxNTgsInVzZXJfaWQiOjcyNjE5Mzg2Mzk3OTY0ODYxNTAsIndlYl9kaWQiOjc2NzAxNzQzNzU0MjA2Mjg3MDYsInNyY19pcCI6IjExOC42OC4xOTUuODYiLCJzY29wZSI6WyJMQVJLIl0sImRldmljZV9vcyI6MSwidGVybWluYWxfdHlwZSI6Mn0sInRva2VuX3R5cGUiOiJQQVNTIn0.nFE2cnMf8BDwHFQOYiDR7dIIyoG54zGNZeVV-jwsQvQUPPnste0dxAxCYLfPFcU_0fRG0FuZdFFPh338p_bf2w; passport_app_access_token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU2MDQsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtX2FjY2Vzc19pbmZvIjp7IjEwMCI6eyJpYXQiOjE3ODU4NTE2ODIsImFjY2VzcyI6dHJ1ZX0sIjI5Ijp7ImlhdCI6MTc4NTg1MTkyNSwiYWNjZXNzIjp0cnVlfSwiMiI6eyJpYXQiOjE3ODU4NTE4OTksImFjY2VzcyI6dHJ1ZX0sIjQiOnsiaWF0IjoxNzg1ODUyNDA0LCJhY2Nlc3MiOnRydWV9fSwic3VtIjoiZGUyNWUzYzk2MWI1OTIxZTAyZjI4NjE1NGVkZjg1NThiZDE1MjJiMTViNGEyYWE4NjRmZTk1NGIzNGY2YWFjMyJ9fQ.R47IJHzqubv9ouTurp6x1o0RCL6WnmfmYO2vACVZ5k8l0jV0xeIAH7QEc7QOwu9kCNuICdZoppnZ-svG0K_QKQ"
+          COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw"
           CSRF="d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902"
           MOUNT_POINT="bitable_file"
           MOUNT_NODE_TOKEN="LnrIbvRYXa7QG7sIPhOuKp8qsIf"
@@ -31,6 +55,7 @@
       - name: Upload file blocks to Lark Base
         id: lark_upload_blocks
         run: |
+          set -euo pipefail
           FILE="video_${RAND}.mp4"
           UPLOAD_ID="${{ env.UPLOAD_ID }}"
           BLOCK_SIZE="${{ env.BLOCK_SIZE }}"
@@ -66,6 +91,7 @@
       - name: Finish upload on Lark Base
         id: lark_finish
         run: |
+          set -euo pipefail
           FILE="video_${RAND}.mp4"
           SIZE=$(stat -c%s "$FILE")
           ORIGIN="https://trans-cosmos.larksuite.com"
@@ -99,7 +125,6 @@
         id: lark_submit_form
         run: |
           set -euo pipefail
-
           FILE="video_${RAND}.mp4"
           ORIGIN="https://trans-cosmos.larksuite.com"
           COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw"
@@ -145,7 +170,6 @@
           echo "Response from form/view:"
           jq . /tmp/bitable_resp.json || cat /tmp/bitable_resp.json
 
-          # Optional: notify your workflow webhook with file info
           NOTIFY_PAYLOAD=$(jq -n --arg name "$FILE" --arg src "${{ github.event.inputs.video_url }}" --arg token "$FILE_TOKEN" '{file_name:$name, source_url:$src, file_token:$token}')
           curl -s -X POST "$WEBHOOK" -H "Content-Type: application/json" -d "$NOTIFY_PAYLOAD" -o /tmp/notify_resp.json || true
           cat /tmp/notify_resp.json || true
