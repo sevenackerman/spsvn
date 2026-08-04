@@ -1,52 +1,56 @@
-name: Upload MP4 to Lark Base 2
-
-on:
-  workflow_dispatch:
-    inputs:
-      video_url:
-        description: 'URL file MP4 cần tải'
-        required: true
-
-jobs:
-  upload-job:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq coreutils
+
       - name: Download video
         run: |
-          curl -L "${{ github.event.inputs.video_url }}" -o video.mp4
+          set -euo pipefail
+          curl -L --fail --retry 3 --retry-delay 5 "${{ github.event.inputs.video_url }}" -o video.mp4
           RAND=$(date +%s)
           mv video.mp4 video_${RAND}.mp4
           echo "RAND=$RAND" >> $GITHUB_ENV
+          ls -lh video_${RAND}.mp4
 
       - name: Prepare upload on Lark Base
         id: lark_prepare
         run: |
           set -euo pipefail
           FILE="video_${RAND}.mp4"
+          [ -f "$FILE" ] || (echo "File not found: $FILE" && exit 1)
           SIZE=$(stat -c%s "$FILE")
           ORIGIN="https://trans-cosmos.larksuite.com"
-          COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw"
-          CSRF="d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902"
+          COOKIE="(your cookie here)"   # giữ nguyên hoặc chuyển sang secrets
+          CSRF="(your csrf here)"
           MOUNT_POINT="bitable_file"
           MOUNT_NODE_TOKEN="LnrIbvRYXa7QG7sIPhOuKp8qsIf"
 
-          echo "Preparing upload for $FILE size=$SIZE"
-
-          PREPARE_RESP=$(curl -s -X POST "${ORIGIN}/space/api/box/upload/prepare/" \
+          PREPARE_RESP=$(curl -sS -w "\n%{http_code}" -X POST "${ORIGIN}/space/api/box/upload/prepare/" \
             -H "Content-Type: application/json" \
             -H "Cookie: ${COOKIE}" \
             -H "x-csrftoken: ${CSRF}" \
             -d "{\"mount_point\":\"${MOUNT_POINT}\",\"mount_node_token\":\"${MOUNT_NODE_TOKEN}\",\"name\":\"${FILE}\",\"size\":${SIZE},\"size_checker\":false}")
 
-          echo "$PREPARE_RESP" > prepare.json
+          HTTP=$(echo "$PREPARE_RESP" | tail -n1)
+          BODY=$(echo "$PREPARE_RESP" | sed '$d')
+          echo "prepare http_code=$HTTP"
+          echo "$BODY" > prepare.json
           cat prepare.json
 
-          UPLOAD_ID=$(echo "$PREPARE_RESP" | jq -r '.data.upload_id')
-          BLOCK_SIZE=$(echo "$PREPARE_RESP" | jq -r '.data.block_size')
-          NUM_BLOCKS=$(echo "$PREPARE_RESP" | jq -r '.data.num_blocks')
+          if [ "$HTTP" -ge 400 ]; then
+            echo "Prepare failed" && exit 1
+          fi
+
+          UPLOAD_ID=$(echo "$BODY" | jq -r '.data.upload_id')
+          BLOCK_SIZE=$(echo "$BODY" | jq -r '.data.block_size')
+          NUM_BLOCKS=$(echo "$BODY" | jq -r '.data.num_blocks')
 
           echo "UPLOAD_ID=$UPLOAD_ID" >> $GITHUB_ENV
           echo "BLOCK_SIZE=$BLOCK_SIZE" >> $GITHUB_ENV
@@ -60,8 +64,8 @@ jobs:
           UPLOAD_ID="${{ env.UPLOAD_ID }}"
           BLOCK_SIZE="${{ env.BLOCK_SIZE }}"
           ORIGIN="https://trans-cosmos.larksuite.com"
-          COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw"
-          CSRF="d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902"
+          COOKIE="(your cookie here)"
+          CSRF="(your csrf here)"
 
           FILE_SIZE=$(stat -c%s "$FILE")
           if [ -z "${{ env.NUM_BLOCKS }}" ] || [ "${{ env.NUM_BLOCKS }}" = "null" ]; then
@@ -73,18 +77,23 @@ jobs:
           for INDEX in $(seq 0 $((NUM_BLOCKS - 1))); do
             OFFSET=$(( INDEX * BLOCK_SIZE ))
             CHUNK_FILE="/tmp/chunk_${INDEX}.bin"
-            dd if="$FILE" of="$CHUNK_FILE" bs=1 skip=$OFFSET count=$BLOCK_SIZE status=none || true
+            dd if="$FILE" of="$CHUNK_FILE" bs="$BLOCK_SIZE" skip="$OFFSET" count=1 iflag=skip_bytes,count_bytes status=none || true
 
             echo "Uploading block ${INDEX} (offset=${OFFSET})"
-            curl -s -X POST "${ORIGIN}/space/api/box/upload/block/" \
+            RESP=$(curl -sS -w "\n%{http_code}" -X POST "${ORIGIN}/space/api/box/upload/block/" \
               -H "Cookie: ${COOKIE}" \
               -H "x-csrftoken: ${CSRF}" \
               -F "upload_id=${UPLOAD_ID}" \
               -F "block_index=${INDEX}" \
-              -F "file=@${CHUNK_FILE};type=application/octet-stream" \
-              -o /tmp/block_resp_${INDEX}.json
-
-            cat /tmp/block_resp_${INDEX}.json
+              -F "file=@${CHUNK_FILE};type=application/octet-stream")
+            HTTP=$(echo "$RESP" | tail -n1)
+            BODY=$(echo "$RESP" | sed '$d')
+            echo "block ${INDEX} http=$HTTP"
+            echo "$BODY" > /tmp/block_resp_${INDEX}.json
+            if [ "$HTTP" -ge 400 ]; then
+              cat /tmp/block_resp_${INDEX}.json
+              exit 1
+            fi
             rm -f "$CHUNK_FILE"
           done
 
@@ -93,33 +102,29 @@ jobs:
         run: |
           set -euo pipefail
           FILE="video_${RAND}.mp4"
-          SIZE=$(stat -c%s "$FILE")
           ORIGIN="https://trans-cosmos.larksuite.com"
-          COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw"
-          CSRF="d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902"
+          COOKIE="(your cookie here)"
+          CSRF="(your csrf here)"
           MOUNT_POINT="bitable_file"
-          MOUNT_NODE_TOKEN="LnrIbvRYXa7QG7sIPhOuKp8qsIf"
           UPLOAD_ID="${{ env.UPLOAD_ID }}"
 
-          echo "Finishing upload upload_id=$UPLOAD_ID"
-
-          FINISH_RESP=$(curl -s -X POST "${ORIGIN}/space/api/box/upload/finish/" \
+          FINISH_RESP=$(curl -sS -w "\n%{http_code}" -X POST "${ORIGIN}/space/api/box/upload/finish/" \
             -H "Content-Type: application/json" \
             -H "Cookie: ${COOKIE}" \
             -H "x-csrftoken: ${CSRF}" \
             -d "{\"upload_id\":\"${UPLOAD_ID}\",\"num_blocks\":${{ env.NUM_BLOCKS }},\"mount_point\":\"${MOUNT_POINT}\",\"push_open_history_record\":0}")
 
-          echo "$FINISH_RESP" > finish.json
+          HTTP=$(echo "$FINISH_RESP" | tail -n1)
+          BODY=$(echo "$FINISH_RESP" | sed '$d')
+          echo "finish http_code=$HTTP"
+          echo "$BODY" > finish.json
           cat finish.json
+          if [ "$HTTP" -ge 400 ]; then
+            exit 1
+          fi
 
-          FILE_TOKEN=$(echo "$FINISH_RESP" | jq -r '.data.file_token // empty')
-          VERSION=$(echo "$FINISH_RESP" | jq -r '.data.version // empty')
-          if [ -n "$FILE_TOKEN" ]; then
-            echo "FILE_TOKEN=$FILE_TOKEN" >> $GITHUB_ENV
-          fi
-          if [ -n "$VERSION" ]; then
-            echo "VERSION=$VERSION" >> $GITHUB_ENV
-          fi
+          FILE_TOKEN=$(echo "$BODY" | jq -r '.data.file_token // empty')
+          echo "FILE_TOKEN=$FILE_TOKEN" >> $GITHUB_ENV
 
       - name: Submit file to Bitable form view
         id: lark_submit_form
@@ -127,19 +132,15 @@ jobs:
           set -euo pipefail
           FILE="video_${RAND}.mp4"
           ORIGIN="https://trans-cosmos.larksuite.com"
-          COOKIE="passport_web_did=7670174375420628706; passport_trace_id=7670174375437405917; QXV0aHpDb250ZXh0=562ff534f2b64d41a4507d1b74c166df; first_landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; landing_url=https://accounts.larksuite.com/accounts/page/login?app_id=1&no_trap=1&redirect_uri=https%253A%252F%252Fwww.larksuite.com%252Fmessenger; _gcl_au=1.1.887165197.1785851638; s_v_web_id=verify_msepyf6m_MqaiQnVR_NMLX_44rh_9XgK_GtivRInAnfXS; _fuid=NzBiMTdkM2ItZWRlOS00MTNiLWIzNjktMGJkMTFhNDQ5OWRl; session=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; session_list=XN0YXJ0-516tf649-1d4d-41ab-991f-999hbrleaq0k-WVuZA; login_recently=1; i18n_locale=vi-VN; is_anonymous_session=; lang=vi; i18n_locale=vi; js_version=1; et=ed08d86f867e54cd0acdf3d1ab6ba80c; _csrf_token=d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902; ccm_cdn_host=//lf-package-sg.larksuitecdn.com/obj/lark-static-sg; __tea__ug__uid=5781140141414111241; locale=vi-VN; _tea_utm_cache_302704=undefined; sl_session=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODU4OTU0OTIsInVuaXQiOiJldV9lYSIsInJhdyI6eyJtZXRhIjoiQVdUSGxyZXR3TUFHWG5NZDNESkFBQVpxY2U3MHhFQU80bXB4N3ZURVFBN2lhbkh2R3F6QUVIY0NLZ0lBUVVGQlFVRkJRVUZCVjFaeFkyVTRZWFpuUVZGa1FUMDkiLCJpZGMiOlsxLDJdLCJzdW0iOiJkZTI1ZTNjOTYxYjU5MjFlMDJmMjg2MTU0ZWRmODU1OGJkMTUyMmIxNWI0YTJhYTg2NGZlOTU0YjM0ZjZhYWMzIiwibG9jIjoidmlfdm4iLCJhcGMiOiJSZWxlYXNlIiwiaWF0IjoxNzg1ODUyMjkyLCJzYWMiOnsiVXNlclN0YWZmU3RhdHVzIjoiMSIsIlVzZXJUeXBlIjoiNDIifSwibG9kIjpudWxsLCJucyI6ImxhcmsiLCJuc191aWQiOiI3MjYxOTM4NjM5Nzk2NDg2MTUwIiwibnNfdGlkIjoiNjgwNTgxNjI5MzQ2MDAxNzE1OCIsIm90IjoxLCJhaSI6W3siYW0iOjcsImN0IjoxNzg1ODUxNjc1fSx7ImFtIjoxLCJjdCI6MTc4NTg1MTY3NX1dLCJjdCI6MTc4NTg1MTY3NSwicnQiOjE3ODU4NTE2NzUsInRjcyI6MiwidGJ0IjowfX0.QPwCbZVb3Vi_gC0TP-PNawmXssQLBDwCNG2h6Hp4G-L7LiI3cuvj5i7ikk4IaqnRn03jvtYIXrMiapoI1HFYOw"
-          CSRF="d03e92533775588c3d17ac1f7e91a6e40ce86c55-1785851902"
+          COOKIE="(your cookie here)"
+          CSRF="(your csrf here)"
           SHARE_TOKEN="shrusiHc9mLRfNF94HZq1va5Apc"
           MOUNT_NODE_TOKEN="LnrIbvRYXa7QG7sIPhOuKp8qsIf"
           TABLE_ID="tblE790P2zlker20"
           FIELD_ID="fldmG28Lps"
-          WEBHOOK="https://trans-cosmos.larksuite.com/base/workflow/webhook/event/R5afajhrMw02mGhgtFzuTp3Zs0t"
 
           FILE_TOKEN="${{ env.FILE_TOKEN }}"
-          if [ -z "$FILE_TOKEN" ]; then
-            echo "ERROR: FILE_TOKEN is empty. Finish step may have failed."
-            exit 1
-          fi
+          [ -n "$FILE_TOKEN" ] || (echo "FILE_TOKEN empty" && exit 1)
 
           ATTACHMENT_JSON=$(jq -n \
             --arg id "$FILE_TOKEN" \
@@ -160,16 +161,16 @@ jobs:
             --arg fromSource "3" \
             '{shareToken:$shareToken, token:$token, tableId:$tableId, data:($data|tostring), fromSource:($fromSource|tonumber)}')
 
-          curl -sS -X POST "${ORIGIN}/space/api/bitable/form/view" \
+          RESP=$(curl -sS -w "\n%{http_code}" -X POST "${ORIGIN}/space/api/bitable/form/view" \
             -H "Content-Type: application/json" \
             -H "Cookie: ${COOKIE}" \
             -H "x-csrftoken: ${CSRF}" \
-            -H "context: request_id=$(uuidgen);os=linux;app_version=ci;os_version=runner;platform=ci" \
-            -d "$PAYLOAD" -o /tmp/bitable_resp.json || (cat /tmp/bitable_resp.json && exit 1)
-
-          echo "Response from form/view:"
-          jq . /tmp/bitable_resp.json || cat /tmp/bitable_resp.json
-
-          NOTIFY_PAYLOAD=$(jq -n --arg name "$FILE" --arg src "${{ github.event.inputs.video_url }}" --arg token "$FILE_TOKEN" '{file_name:$name, source_url:$src, file_token:$token}')
-          curl -s -X POST "$WEBHOOK" -H "Content-Type: application/json" -d "$NOTIFY_PAYLOAD" -o /tmp/notify_resp.json || true
-          cat /tmp/notify_resp.json || true
+            -d "$PAYLOAD")
+          HTTP=$(echo "$RESP" | tail -n1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "form/view http_code=$HTTP"
+          echo "$BODY" > /tmp/bitable_resp.json
+          cat /tmp/bitable_resp.json
+          if [ "$HTTP" -ge 400 ]; then
+            exit 1
+          fi
